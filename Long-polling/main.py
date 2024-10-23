@@ -51,4 +51,4 @@ async def check_for_updates():
             return {machine: machines_status[machine]}
     return None
 
-# uvicorn main:app --reload --host 172.18.7.93 --port 8989
+# uvicorn main:app --reload --host localhost --port 8989
