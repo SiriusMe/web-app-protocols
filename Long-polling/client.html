@@ -104,7 +104,7 @@
         // Simulate long polling
         const startLongPolling = async () => {
             try {
-                const response = await fetch('http://172.18.7.93:8989/long-polling');
+                const response = await fetch('http://localhost:8989/long-polling');
                 if (!response.ok) throw new Error('Network response was not ok');
 
                 const data = await response.json();
