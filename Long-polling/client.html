@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Status Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .status-running { background-color: #38a169; } /* green-500 */
+        .status-idle { background-color: #d69e2e; } /* yellow-500 */
+        .status-error { background-color: #e53e3e; } /* red-500 */
+        .temp-green { color: #48bb78; } /* green-500 */
+        .temp-yellow { color: #ecc94b; } /* yellow-500 */
+        .temp-red { color: #e53e3e; } /* red-500 */
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="p-6 max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Machine Status Dashboard</h1>
+
+        <div id="error-message" class="mb-4 hidden">
+            <div class="flex items-center p-4 bg-red-500 text-white rounded">
+                <svg class="h-4 w-4 mr-2" data-lucide="alert-triangle" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 2h.01M10.293 5.293a1 1 0 00-1.415 0l-8 8a1 1 0 001.415 1.415L12 7.414l9.293 9.293a1 1 0 001.415-1.415l-8-8z" />
+                </svg>
+                <span id="error-description">Connection lost. Retrying...</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="machine-cards">
+            <!-- Machine Cards will be generated here -->
+        </div>
+    </div>
+
+    <script>
+        const machineData = {
+            "Machine A": { status: "running", temperature: 75, output_count: 1000 },
+            "Machine B": { status: "idle", temperature: 70, output_count: 500 },
+            "Machine C": { status: "error", temperature: 80, output_count: 0 }
+        };
+
+        const renderMachines = () => {
+            const machineCards = document.getElementById('machine-cards');
+            machineCards.innerHTML = ''; // Clear existing cards
+
+            for (const [machineName, data] of Object.entries(machineData)) {
+                const card = document.createElement('div');
+                card.className = "shadow-lg p-4 bg-white rounded-lg";
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span>${machineName}</span>
+                        <span class="px-3 py-1 rounded-full text-white text-sm ${getStatusClass(data.status)}">
+                            ${data.status.toUpperCase()}
+                        </span>
+                    </div>
+                    <div class="space-y-4 mt-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <span class="mr-2 ${getTemperatureClass(data.temperature)}">🌡️</span>
+                                <span>Temperature</span>
+                            </div>
+                            <span class="font-bold ${getTemperatureClass(data.temperature)}">
+                                ${data.temperature}°C
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <span class="mr-2 text-blue-500">📊</span>
+                                <span>Output Count</span>
+                            </div>
+                            <span class="font-bold">${data.output_count}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <span class="mr-2 text-purple-500">⏰</span>
+                                <span>Last Updated</span>
+                            </div>
+                            <span class="text-sm text-gray-500">
+                                ${new Date().toLocaleTimeString()}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                machineCards.appendChild(card);
+            }
+        };
+
+        const getStatusClass = (status) => {
+            switch (status.toLowerCase()) {
+                case 'running': return 'status-running';
+                case 'idle': return 'status-idle';
+                case 'error': return 'status-error';
+                default: return '';
+            }
+        };
+
+        const getTemperatureClass = (temp) => {
+            if (temp >= 85) return 'temp-red';
+            if (temp >= 75) return 'temp-yellow';
+            return 'temp-green';
+        };
+
+        // Simulate long polling
+        const startLongPolling = async () => {
+            try {
+                const response = await fetch('http://172.18.7.93:8989/long-polling');
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const data = await response.json();
+                if (data) {
+                    const [machineName, machineStatus] = Object.entries(data)[0];
+                    machineData[machineName] = machineStatus;
+                    renderMachines();
+                }
+                startLongPolling(); // Restart polling
+            } catch (err) {
+                document.getElementById('error-message').classList.remove('hidden');
+                setTimeout(startLongPolling, 5000); // Retry after 5 seconds
+            }
+        };
+
+        window.onload = () => {
+            renderMachines();
+            startLongPolling();
+        };
+    </script>
+</body>
+</html>

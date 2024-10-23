@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Monitoring Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom styles for icons and alerts */
+        .alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            background-color: rgba(239, 68, 68, 0.1);
+            border-radius: 0.375rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 p-6">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Machine Monitoring Dashboard</h1>
+            <p class="text-gray-600">Real-time WebSocket Data Stream</p>
+        </div>
+        <div id="connection-status" class="px-4 py-2 rounded-full bg-red-100 text-red-800">
+            Disconnected
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        <!-- Current Metrics -->
+        <div class="lg:col-span-4 p-4 rounded-lg border border-gray-200 bg-white">
+            <h2 class="font-bold">Current Metrics</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-red-500">🌡️</span>
+                        <span class="font-medium text-gray-700">Temperature</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span id="temperature" class="text-2xl font-semibold">0.0°C</span>
+                        <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">NORMAL</span>
+                    </div>
+                </div>
+                <div class="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-blue-500">🔊</span>
+                        <span class="font-medium text-gray-700">Vibration</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span id="vibration" class="text-2xl font-semibold">0.00</span>
+                        <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">NORMAL</span>
+                    </div>
+                </div>
+                <div class="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-green-500">⚙️</span>
+                        <span class="font-medium text-gray-700">Speed</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span id="speed" class="text-2xl font-semibold">0 RPM</span>
+                        <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">NORMAL</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart (Smaller Size) -->
+        <div class="lg:col-span-3 p-4 rounded-lg border border-gray-200 bg-white">
+            <h2 class="font-bold">Real-time Metrics Trend</h2>
+            <div class="w-full">
+                <canvas id="metricsChart" width="400" height="200"></canvas> <!-- Reduced the size -->
+            </div>
+        </div>
+
+        <!-- Alerts Panel -->
+        <div class="lg:col-span-1 p-4 rounded-lg border border-gray-200 bg-white">
+            <h2 class="font-bold">Recent Alerts</h2>
+            <div id="alerts" class="space-y-4">
+                <p class="text-gray-500 text-center py-4">No recent alerts</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const connectionStatus = document.getElementById('connection-status');
+        const temperatureElement = document.getElementById('temperature');
+        const vibrationElement = document.getElementById('vibration');
+        const speedElement = document.getElementById('speed');
+        const alertsContainer = document.getElementById('alerts');
+        const ctx = document.getElementById('metricsChart').getContext('2d');
+        
+        let chartData = {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Temperature (°C)',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                    data: [],
+                },
+                {
+                    label: 'Vibration',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    data: [],
+                },
+                {
+                    label: 'Speed (RPM)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    data: [],
+                }
+            ]
+        };
+
+        const metricsChart = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Metrics'
+                        }
+                    }
+                }
+            }
+        });
+
+        const ws = new WebSocket('ws://localhost:8000/ws/machine-data');
+
+        ws.onopen = () => {
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.classList.remove('bg-red-100', 'text-red-800');
+            connectionStatus.classList.add('bg-green-100', 'text-green-800');
+            console.log('Connected to WebSocket');
+        };
+
+        ws.onclose = () => {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.classList.remove('bg-green-100', 'text-green-800');
+            connectionStatus.classList.add('bg-red-100', 'text-red-800');
+            console.log('Disconnected from WebSocket');
+        };
+
+        ws.onmessage = (event) => {
+            const message = event.data;
+
+            // Check for alerts
+            if (message.startsWith('ALERT:')) {
+                const alertMessage = message.substring(7);
+                const alertDiv = document.createElement('div');
+                alertDiv.classList.add('alert');
+                alertDiv.innerHTML = `<span>⚠️</span><span>${alertMessage}</span>`;
+                alertsContainer.prepend(alertDiv);
+            } else {
+                // Parse regular message for metrics
+                const matches = message.match(/Temperature: ([\d.]+) °C, Vibration: ([\d.]+), Speed: ([\d.]+) RPM/);
+                if (matches) {
+                    const temperature = parseFloat(matches[1]);
+                    const vibration = parseFloat(matches[2]);
+                    const speed = parseFloat(matches[3]);
+                    
+                    temperatureElement.textContent = `${temperature.toFixed(1)}°C`;
+                    vibrationElement.textContent = `${vibration.toFixed(2)}`;
+                    speedElement.textContent = `${speed.toFixed(0)} RPM`;
+
+                    // Update chart data
+                    chartData.labels.push(new Date().toLocaleTimeString());
+                    chartData.datasets[0].data.push(temperature);
+                    chartData.datasets[1].data.push(vibration);
+                    chartData.datasets[2].data.push(speed);
+
+                    if (chartData.labels.length > 20) {
+                        chartData.labels.shift();
+                        chartData.datasets.forEach(dataset => dataset.data.shift());
+                    }
+
+                    metricsChart.update();
+                }
+            }
+        };
+    </script>
+</body>
+</html>

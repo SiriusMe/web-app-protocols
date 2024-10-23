@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Line Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .status-icon {
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 p-6">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Production Line Monitor</h1>
+            <p class="text-gray-600">Real-time SSE Data Stream</p>
+        </div>
+        <div id="connection-status" class="px-4 py-2 rounded-full flex items-center gap-2 bg-red-100 text-red-800">
+            <div class="w-2 h-2 rounded-full bg-red-500"></div>
+            Disconnected
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        <!-- Status Cards -->
+        <div class="lg:col-span-4 p-4 rounded-lg border border-gray-200 bg-white">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div id="machine-status" class="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="text-green-500 status-icon">⚙️</div>
+                        <span class="font-medium text-gray-700">Machine Status</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-2xl font-semibold">operational</div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-500" id="last-update">Last update: 12:30 PM</span>
+                            <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">OPERATIONAL</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="current-value" class="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="text-green-500 status-icon">📦</div>
+                        <span class="font-medium text-gray-700">Current Value</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-2xl font-semibold">50.00</div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-500">Production metric</span>
+                            <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">OPERATIONAL</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="efficiency" class="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="text-green-500 status-icon">📊</div>
+                        <span class="font-medium text-gray-700">Efficiency</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-2xl font-semibold">75.0%</div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-500">Based on max capacity</span>
+                            <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">OPERATIONAL</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="update-interval" class="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="text-green-500 status-icon">⏲️</div>
+                        <span class="font-medium text-gray-700">Update Interval</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-2xl font-semibold">5 seconds</div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-500">Real-time monitoring</span>
+                            <span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">OPERATIONAL</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Alerts Panel -->
+        <div class="lg:col-span-1 p-4 rounded-lg border border-gray-200 bg-white">
+            <h2 class="font-bold">System Alerts</h2>
+            <div class="space-y-4 mt-4" id="alerts">
+                <div class="flex items-start gap-3 p-3 rounded-lg border border-red-200 bg-red-50">
+                    <div class="text-red-500">⚠️</div>
+                    <div>
+                        <p class="text-red-800">High production value detected</p>
+                        <div class="flex items-center gap-2 text-sm text-gray-500">
+                            <span>12:25 PM</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3 p-3 rounded-lg border border-yellow-200 bg-yellow-50">
+                    <div class="text-yellow-500">⚠️</div>
+                    <div>
+                        <p class="text-yellow-800">Production value below threshold</p>
+                        <div class="flex items-center gap-2 text-sm text-gray-500">
+                            <span>12:20 PM</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Establish SSE connection
+        const eventSource = new EventSource("http://172.18.7.93:8989/sse");
+        const connectionStatus = document.getElementById("connection-status");
+
+        eventSource.onopen = function() {
+            connectionStatus.innerHTML = '<div class="w-2 h-2 rounded-full bg-green-500"></div> Connected';
+            connectionStatus.classList.remove("bg-red-100", "text-red-800");
+            connectionStatus.classList.add("bg-green-100", "text-green-800");
+        };
+
+        eventSource.onerror = function() {
+            connectionStatus.innerHTML = '<div class="w-2 h-2 rounded-full bg-red-500"></div> Disconnected';
+            connectionStatus.classList.remove("bg-green-100", "text-green-800");
+            connectionStatus.classList.add("bg-red-100", "text-red-800");
+        };
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            // Update dashboard with new data
+            document.querySelector("#current-value .text-2xl").innerText = data.value.toFixed(2);
+            document.querySelector("#last-update").innerText = `Last update: ${new Date(data.timestamp * 1000).toLocaleTimeString()}`;
+            document.querySelector("#efficiency .text-2xl").innerText = `${(data.value / 200 * 100).toFixed(1)}%`; // Assuming max value is 200
+        };
+    </script>
+
+</body>
+</html>
