@@ -59,4 +59,4 @@ async def send_message(message: str):
     logger.info(f"Message sent to all clients: {message}")
     return {"message": "Message sent to all clients"}
 
-# uvicorn main:app --reload --host 172.18.7.93 --port 8989
+# uvicorn main:app --reload --host localhost --port 8989
