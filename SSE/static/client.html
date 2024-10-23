@@ -116,7 +116,7 @@
 
     <script>
         // Establish SSE connection
-        const eventSource = new EventSource("http://172.18.7.93:8989/sse");
+        const eventSource = new EventSource("http://localhost:8989/sse");
         const connectionStatus = document.getElementById("connection-status");
 
         eventSource.onopen = function() {
